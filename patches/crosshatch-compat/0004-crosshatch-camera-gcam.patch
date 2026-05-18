@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PixelOS Crosshatch Porter <porter@pixelos.net>
+Date: Mon, 18 May 2026 00:00:03 +0000
+Subject: [PATCH 0004] crosshatch: Add GCam & dual front camera compatibility
+
+Pixel 3 XL has:
+  - 12.2MP rear camera (Sony IMX363) — single lens
+  - 8MP + 8MP dual front camera (portrait mode)
+
+Poco F1 had:
+  - 12MP + 5MP dual rear cameras
+  - 20MP single front camera
+
+This patch remaps camera IDs and enables GCam HAL3.
+
+---
+ camera3_profiles_crosshatch.xml | 60 +++++++++++++++++++++++++++++++++++
+
+diff --git a/camera3_profiles_crosshatch.xml b/camera3_profiles_crosshatch.xml
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/camera3_profiles_crosshatch.xml
+@@ -0,0 +1,60 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Pixel 3 XL (crosshatch) camera profiles -->
++<CameraSettings>
++    <!-- Rear main camera: Sony IMX363 12.2MP -->
++    <Camera id="0">
++        <Quirk name="partialResult" value="true"/>
++        <Quirk name="monochrome" value="false"/>
++        <StreamConfig>
++            <Format name="jpeg">
++                <Size width="4032" height="3024"/>
++                <Size width="3024" height="3024"/>
++                <Size width="2016" height="1512"/>
++            </Format>
++            <Format name="raw16">
++                <Size width="4032" height="3024"/>
++            </Format>
++        </StreamConfig>
++        <GcamEnabled>true</GcamEnabled>
++        <HdrEnabled>true</HdrEnabled>
++        <NightSightEnabled>true</NightSightEnabled>
++    </Camera>
++
++    <!-- Front wide camera: 8MP -->
++    <Camera id="1">
++        <Quirk name="partialResult" value="true"/>
++        <StreamConfig>
++            <Format name="jpeg">
++                <Size width="3264" height="2448"/>
++                <Size width="2448" height="2448"/>
++            </Format>
++        </StreamConfig>
++        <GcamEnabled>true</GcamEnabled>
++        <PortraitModeEnabled>true</PortraitModeEnabled>
++    </Camera>
++
++    <!-- Front telephoto / depth camera: 8MP -->
++    <Camera id="2">
++        <Quirk name="depthOnly" value="true"/>
++        <StreamConfig>
++            <Format name="jpeg">
++                <Size width="3264" height="2448"/>
++            </Format>
++        </StreamConfig>
++        <DepthCamera>true</DepthCamera>
++    </Camera>
++</CameraSettings>

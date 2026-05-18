@@ -1,0 +1,102 @@
+name: "🔁 Self-Hosted Runner Build"
+# Use this workflow when you have your OWN Linux server registered as a GitHub runner
+# Self-hosted runners have no storage/time limits like GitHub-hosted ones
+# Setup guide: https://docs.github.com/en/actions/hosting-your-own-runners
+
+on:
+  workflow_dispatch:
+    inputs:
+      BUILD_TYPE:
+        description: "Build type"
+        required: true
+        default: "user"
+        type: choice
+        options: [user, userdebug, eng]
+      CLEAN_BUILD:
+        description: "Run make clobber before building"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DEVICE:       crosshatch
+  ROM_MANIFEST: https://github.com/PixelOS-AOSP/manifest
+  ROM_BRANCH:   fourteen
+  BUILD_DIR:    ${{ github.workspace }}/pixelos-src
+
+jobs:
+  build-selfhosted:
+    name: "🏗️ Build on Self-Hosted Runner"
+    # Change 'self-hosted' to your runner's label
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 600   # 10 hours — plenty for self-hosted
+
+    steps:
+      - name: "📥 Checkout device tree"
+        uses: actions/checkout@v4
+
+      - name: "📦 Install deps (if needed)"
+        run: |
+          if ! command -v ccache &>/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y bc bison build-essential ccache curl flex \
+              g++-multilib gcc-multilib git gnupg gperf libncurses5-dev \
+              libssl-dev libxml2-utils lzop openjdk-11-jdk python3 repo \
+              zip zlib1g-dev
+          fi
+
+      - name: "⚙️ Configure ccache (50GB for self-hosted)"
+        run: |
+          export USE_CCACHE=1
+          export CCACHE_DIR=$HOME/.ccache
+          ccache --max-size=50G
+          echo "USE_CCACHE=1" >> $GITHUB_ENV
+          echo "CCACHE_DIR=$HOME/.ccache" >> $GITHUB_ENV
+
+      - name: "📋 Init & sync sources"
+        run: |
+          mkdir -p ${{ env.BUILD_DIR }}
+          cd ${{ env.BUILD_DIR }}
+          repo init --depth=1 \
+            -u ${{ env.ROM_MANIFEST }} \
+            -b ${{ env.ROM_BRANCH }}
+          mkdir -p .repo/local_manifests
+          cp ${{ github.workspace }}/local_manifests/roomservice.xml \
+             .repo/local_manifests/
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+
+      - name: "📁 Install device tree"
+        run: |
+          cp -r ${{ github.workspace }}/device/google/crosshatch \
+                ${{ env.BUILD_DIR }}/device/google/crosshatch
+          cp -r ${{ github.workspace }}/patches \
+                ${{ env.BUILD_DIR }}/device/google/crosshatch/patches
+
+      - name: "🩹 Apply patches"
+        run: |
+          cd ${{ env.BUILD_DIR }}
+          bash device/google/crosshatch/patches/apply_patches.sh
+
+      - name: "🧹 Clean (optional)"
+        if: ${{ github.event.inputs.CLEAN_BUILD == 'true' }}
+        run: |
+          cd ${{ env.BUILD_DIR }}
+          source build/envsetup.sh && make clobber
+
+      - name: "🔨 Build"
+        run: |
+          cd ${{ env.BUILD_DIR }}
+          source build/envsetup.sh
+          lunch pixelos_crosshatch-${{ github.event.inputs.BUILD_TYPE }}
+          make bacon -j$(nproc --all) 2>&1 | tee ${{ github.workspace }}/build.log
+
+      - name: "📤 Create Release"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "selfhosted-$(date +%Y%m%d-%H%M)"
+          name: "PixelOS 14 — crosshatch — $(date +%Y%m%d)"
+          files: |
+            ${{ env.BUILD_DIR }}/out/target/product/crosshatch/PixelOS*.zip
+            ${{ env.BUILD_DIR }}/out/target/product/crosshatch/boot.img
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

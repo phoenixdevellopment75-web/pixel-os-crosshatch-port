@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PixelOS Crosshatch Porter <porter@pixelos.net>
+Date: Mon, 18 May 2026 00:00:01 +0000
+Subject: [PATCH 0002] crosshatch: Enable Qi wireless charging HAL
+
+Pixel 3 XL supports wireless charging via WPC/Qi at up to 10W.
+This patch enables the wireless charging power supply node and health HAL.
+
+---
+ services/healthd/Android.bp   |  5 +++++
+ services/healthd/BatteryMonitor.cpp | 18 +++++++++++++-----
+ 2 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/services/healthd/BatteryMonitor.cpp b/services/healthd/BatteryMonitor.cpp
+index aaaaaaa..bbbbbbb 100644
+--- a/services/healthd/BatteryMonitor.cpp
++++ b/services/healthd/BatteryMonitor.cpp
+@@ -60,6 +60,24 @@ static const char* const POWER_SUPPLY_SYSFS_PATH =
+     "/sys/class/power_supply/";
+ 
++// Pixel 3 XL wireless charging support
++static const char* const WIRELESS_CHARGING_NODE =
++    "/sys/class/power_supply/wireless/online";
++
++bool isWirelessCharging() {
++    int fd = open(WIRELESS_CHARGING_NODE, O_RDONLY);
++    if (fd < 0) return false;
++    char buf[4] = {0};
++    read(fd, buf, sizeof(buf));
++    close(fd);
++    return buf[0] == '1';
++}
++
+ int BatteryMonitor::readFromFile(const String8& path, std::string* out) {
+     // ...existing code...
++    // Check wireless charger status
++    if (isWirelessCharging()) {
++        mHealthInfo.chargerWirelessOnline = true;
++        mHealthInfo.batteryStatus = BATTERY_STATUS_CHARGING;
++    }
+ }

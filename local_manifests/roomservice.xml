@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  local_manifests/roomservice.xml
+  PixelOS Android 14 — Pixel 3 XL (crosshatch) Port
+  GitHub: https://github.com/phoenixdevellopment75-web/pixel-os-crosshatch-port
+-->
+<manifest>
+
+  <!-- Remote definition -->
+  <remote name="github"
+          fetch="https://github.com/"
+          review="https://github.com/" />
+
+  <!-- ── Device Tree (this repo) ─────────────────────────────────────────── -->
+  <project
+    name="phoenixdevellopment75-web/pixel-os-crosshatch-port"
+    path="device/google/crosshatch"
+    remote="github"
+    revision="main"
+    clone-depth="1" />
+
+  <!-- ── Vendor Blobs (pre-extracted — NO need to own a Pixel 3 XL) ──────── -->
+  <project
+    name="TheMuppets/proprietary_vendor_google"
+    path="vendor/google"
+    remote="github"
+    revision="lineage-21.0"
+    clone-depth="1" />
+
+  <!-- ── NFC HAL — NXP PN553 ────────────────────────────────────────────── -->
+  <project
+    name="LineageOS/android_hardware_nxp_nfc"
+    path="hardware/nxp/nfc"
+    remote="github"
+    revision="lineage-21"
+    clone-depth="1" />
+
+  <!-- ── Google Pixel hardware interfaces ──────────────────────────────── -->
+  <project
+    name="LineageOS/android_hardware_google_interfaces"
+    path="hardware/google/interfaces"
+    remote="github"
+    revision="lineage-21"
+    clone-depth="1" />
+
+  <project
+    name="LineageOS/android_hardware_google_pixel"
+    path="hardware/google/pixel"
+    remote="github"
+    revision="lineage-21"
+    clone-depth="1" />
+
+  <!-- ── QCom common (display / audio HAL) ─────────────────────────────── -->
+  <project
+    name="LineageOS/android_device_qcom_common"
+    path="device/qcom/common"
+    remote="github"
+    revision="lineage-21"
+    clone-depth="1" />
+
+  <!-- NOTE: Kernel is NOT listed here — we use a prebuilt binary.
+             This saves ~8 GB of sync + 45 min of compile time.
+             See: device/google/crosshatch/BoardConfig.mk
+                  TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/Image.lz4-dtb -->
+
+</manifest>

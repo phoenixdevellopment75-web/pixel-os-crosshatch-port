@@ -1,0 +1,65 @@
+name: "🐛 Bug Report"
+description: "Report a bug with the crosshatch port"
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug Report — PixelOS Pixel 3 XL Port
+        Please fill out all fields to help us fix the issue faster.
+
+  - type: input
+    id: build-date
+    attributes:
+      label: Build Date
+      placeholder: "e.g. 20260518"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Category
+      options:
+        - Boot / Bootloop
+        - Display / Notch
+        - Camera
+        - NFC
+        - Wireless Charging
+        - Audio
+        - Bluetooth
+        - Wi-Fi
+        - GPS
+        - Fingerprint
+        - SELinux
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      placeholder: "What happens? What did you expect to happen?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logcat
+    attributes:
+      label: Logcat / dmesg output
+      render: shell
+      placeholder: "Paste relevant logs here"
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I wiped System + Data before flashing
+          required: true
+        - label: I flashed all required images (boot, dtbo, vbmeta)
+          required: true
+        - label: I searched for existing issues
+          required: true

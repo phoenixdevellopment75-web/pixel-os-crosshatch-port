@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- overlay/frameworks/base/core/res/res/values/config.xml -->
+<!-- Pixel 3 XL (crosshatch) resource overlays -->
+<!-- Ported from beryllium; crosshatch-specific display/hardware values -->
+
+<resources>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Display — Pixel 3 XL P-OLED, 6.3", 1440x2960, 523 PPI   -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Screen density -->
+    <integer name="config_screenDensityDpi">560</integer>
+
+    <!-- OLED display brightness range -->
+    <integer name="config_screenBrightnessSettingMinimum">1</integer>
+    <integer name="config_screenBrightnessSettingMaximum">255</integer>
+    <integer name="config_screenBrightnessSettingDefault">86</integer>
+
+    <!-- Auto brightness enabled -->
+    <bool name="config_automatic_brightness_available">true</bool>
+
+    <!-- Display cutout (top notch) -->
+    <bool name="config_fillMainBuiltInDisplayCutout">true</bool>
+    <string translatable="false" name="config_mainBuiltInDisplayCutout">
+        M 0,0
+        L -45, 0
+        L -42.6, 12.1
+        C -42.1, 13.0, -41.3, 13.7, -40.3, 14.1
+        C -39.2, 14.5, -37.6, 14.9, -35.4, 15.3
+        C -31.0, 16.1, -24.9, 16.7, -17.6, 17.0
+        L 0, 17.2
+        Z
+        @bottom
+        M 0,0 L 0,30 L 45,30 L 45,0 Z
+    </string>
+
+    <!-- Display type -->
+    <string name="config_displayColorMode">9</string>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  NFC                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <bool name="config_nfcControllerAlwaysOn">false</bool>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Wireless Charging                                         -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <bool name="config_wireless_charging_enabled">true</bool>
+    <integer name="config_wireless_charging_max_watt">10</integer>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Audio — No 3.5mm jack on crosshatch                      -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <bool name="config_hasReconfigurableAudio">true</bool>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Vibrator                                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <integer name="config_vibrationIntensityHigh">255</integer>
+    <integer name="config_vibrationIntensityMedium">128</integer>
+    <integer name="config_vibrationIntensityLow">64</integer>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Navigation                                                -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <bool name="config_swipe_up_gesture_setting_available">true</bool>
+    <integer name="config_navBarInteractionMode">2</integer>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Power                                                     -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <bool name="config_powerDecoupleInteractiveModeFromDisplay">true</bool>
+    <integer name="config_dozeAlwaysOnDisplayAvailable">1</integer>
+    <bool name="config_dozeAlwaysOnEnabled">true</bool>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Camera — Dual front camera                               -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <bool name="config_camera_allow_app_override_lens_facing">false</bool>
+    <integer name="config_cameraFacingFront">1</integer>
+    <integer name="config_numberOfFrontCameras">2</integer>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!--  Misc / Pixel Features                                     -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <bool name="config_supportSystemNavigationKeys">true</bool>
+    <bool name="config_volumeHushGestureEnabled">true</bool>
+    <bool name="config_alwaysOnDisplayAvailable">true</bool>
+
+</resources>

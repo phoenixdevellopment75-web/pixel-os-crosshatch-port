@@ -1,0 +1,86 @@
+# proprietary-files.txt — Pixel 3 XL (crosshatch)
+# Blobs required from stock Android 14 factory image
+# Download: https://developers.google.com/android/images#crosshatch
+
+# ── Bluetooth ─────────────────────────────────────────────────────────────────
+vendor/firmware/btfw32.tlv
+vendor/firmware/btnv32.bin
+vendor/lib64/libbt-vendor.so
+
+# ── Camera ────────────────────────────────────────────────────────────────────
+vendor/lib64/libgooglecamera_hdrplus_gcam.so
+vendor/lib64/libgooglecamera_hdrplus_processing.so
+vendor/lib64/camera.device@3.5-impl.so
+vendor/lib64/hw/camera.sdm845.so
+vendor/lib/libgooglecamera_hdrplus_gcam.so
+vendor/lib/camera.device@3.5-impl.so
+
+# ── Display ───────────────────────────────────────────────────────────────────
+vendor/lib64/hw/hwcomposer.sdm845.so
+vendor/lib64/hw/gralloc.sdm845.so
+vendor/lib64/libdisplayconfig.qti.so
+vendor/lib64/libqdMetaData.so
+vendor/lib/hw/gralloc.sdm845.so
+
+# ── Fingerprint ───────────────────────────────────────────────────────────────
+vendor/lib64/hw/fingerprint.sdm845.so
+vendor/lib64/libfpnav.so
+
+# ── GPU ───────────────────────────────────────────────────────────────────────
+vendor/lib64/egl/libEGL_adreno.so
+vendor/lib64/egl/libGLESv1_CM_adreno.so
+vendor/lib64/egl/libGLESv2_adreno.so
+vendor/lib64/libgsl.so
+vendor/lib64/libCB.so
+vendor/lib/egl/libEGL_adreno.so
+vendor/lib/egl/libGLESv2_adreno.so
+
+# ── GPS ───────────────────────────────────────────────────────────────────────
+vendor/bin/hw/android.hardware.gnss@2.1-service-qti
+vendor/lib64/hw/android.hardware.gnss@2.1-impl-qti.so
+vendor/etc/gnss/gps.conf
+vendor/lib64/libgps.utils.so
+vendor/lib64/libgnss.so
+
+# ── Media ─────────────────────────────────────────────────────────────────────
+vendor/lib64/libgpustats.so
+vendor/lib64/libmm-omxcore.so
+vendor/lib64/libOmxCore.so
+vendor/lib64/libOmxVdec.so
+vendor/lib64/libOmxVenc.so
+vendor/lib/libOmxCore.so
+
+# ── NFC ───────────────────────────────────────────────────────────────────────
+vendor/firmware/libpn553_fw.so
+vendor/lib64/hw/nfc_nci_nxp.sdm845.so
+vendor/bin/hw/android.hardware.nfc@1.2-service
+
+# ── RIL ───────────────────────────────────────────────────────────────────────
+vendor/bin/rild
+vendor/lib64/libril-qc-hal-qmi.so
+vendor/lib64/librilutils.so
+vendor/lib64/libqmiservices.so
+
+# ── Sensors ───────────────────────────────────────────────────────────────────
+vendor/lib64/hw/android.hardware.sensors@2.0-impl.so
+vendor/lib64/libsensor_cal.so
+vendor/lib64/libsnsapi.so
+
+# ── Thermal ───────────────────────────────────────────────────────────────────
+vendor/bin/thermal-engine
+vendor/lib64/libthermalclient.so
+vendor/etc/thermal-engine-crosshatch.conf
+
+# ── Wi-Fi ─────────────────────────────────────────────────────────────────────
+vendor/firmware/wlan/qca_cld/wlan.ko
+vendor/firmware/wlan/qca_cld/WCNSS_qcom_cfg.ini
+vendor/lib64/hw/android.hardware.wifi@1.6-impl.so
+
+# ── Wireless Charging ─────────────────────────────────────────────────────────
+vendor/lib64/libra_wlc.so
+vendor/bin/hw/android.hardware.health@2.1-service
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+vendor/lib64/libqti_vndfwk_detect.so
+vendor/lib64/libqti_vndfwk_detect_vendor.so
+vendor/lib64/libprotobuf-cpp-full-vendorcompat.so

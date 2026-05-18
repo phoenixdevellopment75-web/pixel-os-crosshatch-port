@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  local_manifests/remove_unneeded.xml
+  Strips repos from the PixelOS manifest that we DON'T need for a device port.
+
+  This is the KEY file for fitting the build on GitHub's ~65 GB free runners.
+  Removing these saves approximately 80–120 GB of source tree.
+
+  Rule: if it's not referenced by device/google/crosshatch or vendor/google,
+        we don't need it.
+-->
+<manifest>
+
+  <!-- ── Emulator / SDK (not needed for device builds) ─────────────────── -->
+  <remove-project name="platform/external/qemu" />
+  <remove-project name="platform/sdk" />
+  <remove-project name="platform/development" />
+  <remove-project name="platform/tools/external/gradle" />
+
+  <!-- ── Kernel sources (we use prebuilt binary) ────────────────────────── -->
+  <remove-project name="kernel/google/crosshatch" />
+  <remove-project name="kernel/google/coral" />
+  <remove-project name="kernel/google/floral" />
+  <remove-project name="kernel/google/msm-4.9" />
+  <remove-project name="kernel/google/msm-4.14" />
+  <remove-project name="kernel/google/bluecross" />
+
+  <!-- ── Non-ARM architectures (crosshatch is arm64 only) ─────────────── -->
+  <remove-project name="platform/prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9" />
+  <remove-project name="platform/prebuilts/gcc/linux-x86/mips/mips64el-linux-android-4.9" />
+
+  <!-- ── Test suites we don't need ──────────────────────────────────────── -->
+  <remove-project name="platform/test/vts" />
+  <remove-project name="platform/test/vts-testcase" />
+  <remove-project name="platform/test/suite_harness" />
+  <remove-project name="platform/cts" />
+
+  <!-- ── Docs ───────────────────────────────────────────────────────────── -->
+  <remove-project name="platform/docs/source.android.com" />
+
+  <!-- ── Unused device trees ────────────────────────────────────────────── -->
+  <remove-project name="device/generic/arm64" />
+  <remove-project name="device/generic/armv7-a-neon" />
+  <remove-project name="device/generic/mips" />
+  <remove-project name="device/generic/mips64" />
+  <remove-project name="device/generic/x86" />
+  <remove-project name="device/generic/x86_64" />
+  <remove-project name="device/generic/goldfish" />
+  <remove-project name="device/generic/goldfish-opengl" />
+
+</manifest>

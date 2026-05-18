@@ -1,0 +1,33 @@
+# Force LF line endings for all shell scripts and makefiles (required for Linux build system)
+* text=auto
+
+# Shell scripts — must be LF
+*.sh    text eol=lf
+*.rc    text eol=lf
+
+# Makefiles — must be LF
+*.mk    text eol=lf
+Makefile text eol=lf
+
+# Patches — must be LF
+*.patch text eol=lf
+
+# XML / YAML / JSON — LF
+*.xml   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+
+# Config files — LF
+*.conf  text eol=lf
+*.ini   text eol=lf
+
+# Markdown — CRLF ok
+*.md    text
+
+# Binary files
+*.zip   binary
+*.img   binary
+*.apk   binary
+*.so    binary
+*.bin   binary

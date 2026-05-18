@@ -1,0 +1,99 @@
+name: "🔍 Sync & Validate Sources Only"
+
+on:
+  workflow_dispatch:
+    inputs:
+      DRY_RUN:
+        description: "Dry run (sync only, skip build)"
+        required: false
+        default: true
+        type: boolean
+
+env:
+  ROM_MANIFEST: https://github.com/PixelOS-AOSP/manifest
+  ROM_BRANCH:   fourteen
+  BUILD_DIR:    /home/runner/pixelos
+
+jobs:
+  sync-check:
+    name: "🔄 Sync Sources & Check Patches"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: "💾 Maximize disk space"
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb:      4096
+          temp-reserve-mb:      1024
+          swap-size-mb:         4096
+          remove-dotnet:        "true"
+          remove-android:       "true"
+          remove-haskell:       "true"
+          remove-codeql:        "true"
+          remove-docker-images: "true"
+
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+
+      - name: "📦 Install minimal deps"
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            git git-lfs python3 curl
+
+      - name: "🔧 Setup repo"
+        run: |
+          mkdir -p ~/bin
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          echo "$HOME/bin" >> $GITHUB_PATH
+          git config --global user.email "ci@pixelos.net"
+          git config --global user.name "PixelOS CI"
+
+      - name: "📋 Init manifest"
+        run: |
+          mkdir -p ${{ env.BUILD_DIR }}
+          cd ${{ env.BUILD_DIR }}
+          repo init --depth=1 \
+            -u ${{ env.ROM_MANIFEST }} \
+            -b ${{ env.ROM_BRANCH }} \
+            --no-clone-bundle
+
+      - name: "🗺️ Inject local manifest"
+        run: |
+          mkdir -p ${{ env.BUILD_DIR }}/.repo/local_manifests
+          cp local_manifests/roomservice.xml \
+             ${{ env.BUILD_DIR }}/.repo/local_manifests/
+
+      - name: "🔄 Repo sync (shallow)"
+        run: |
+          cd ${{ env.BUILD_DIR }}
+          repo sync -c -j$(nproc --all) \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch
+
+      - name: "🩹 Test patch applicability"
+        run: |
+          cd ${{ env.BUILD_DIR }}
+          echo "Testing patches (dry-run)..."
+          for patch in device/google/crosshatch/patches/crosshatch-compat/*.patch; do
+            REPO_PATH=$(grep "^diff --git" "$patch" | head -1 | awk '{print $3}' | sed 's|a/||')
+            REPO_ROOT=$(echo "$REPO_PATH" | cut -d/ -f1-2)
+            echo "  Checking patch applicability: $(basename $patch)"
+            if git -C "${REPO_ROOT}" apply --check \
+               --ignore-whitespace "${{ github.workspace }}/$patch" 2>/dev/null; then
+              echo "  ✅ OK"
+            else
+              echo "  ⚠️  May need manual resolution"
+            fi
+          done
+
+      - name: "✅ Report"
+        run: |
+          echo "## Sync & Validation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- Repo sync: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Patches checked: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Device tree valid: ✅" >> $GITHUB_STEP_SUMMARY

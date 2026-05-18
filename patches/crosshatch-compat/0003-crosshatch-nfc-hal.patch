@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PixelOS Crosshatch Porter <porter@pixelos.net>
+Date: Mon, 18 May 2026 00:00:02 +0000
+Subject: [PATCH 0003] crosshatch: Configure NFC HAL for NXP PN553
+
+Poco F1 (beryllium) does not have NFC.
+Pixel 3 XL (crosshatch) uses NXP PN553 NFC controller over I2C.
+This patch adds the NFC HAL configuration and libnfc-nxp settings.
+
+---
+ libnfc-nxp.conf | 45 +++++++++++++++++++++++++++++++++++++++++++
+
+diff --git a/libnfc-nxp.conf b/libnfc-nxp.conf
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/libnfc-nxp.conf
+@@ -0,0 +1,45 @@
++#################### Pixel 3 XL (crosshatch) NFC Config ####################
++# NXP PN553 NFC Controller
++
++NXP_CORE_CONF_EXTN={20, 02, 05, 01, A0, 44, 01, 00}
++NXP_RF_CONF_BLK_1={
++    20, 02, 38, 07,
++    A0, 0D, 06, 06, 75, 77, 78, 00, 00,
++    A0, 0D, 06, 06, 80, 82, 83, 00, 00
++}
++
++###############################################################################
++NXP_SPI_INTF_RES_WAIT=5000
++NXP_NFCC_STANDBY_TIMEOUT=20
++NXP_NFCC_RF_FIELD_TIMER_USED=0x01
++NXP_ACT_PROP_EXTN=0x01
++
++# DWP speed
++NXP_WI_MODE_SPEED=0x01
++
++# Firmware update
++NXP_FW_NAME="libpn553_fw.so"
++NXP_FW_TYPE=0x0A
++
++# I2C Transport speed
++TRANSPORT_MODE=I2C
++NXP_I2C_FRAGMENTATION_ENABLED=0x01
++
++# AID routing table size (bytes)
++AID_MATCHING_L=0x01
++
++# CE in Reader Mode
++NXP_CORE_RF_FIELD=0x00
++
++# Logging
++NXP_LOG_EXTNS_LOGLEVEL=0x01
++NXP_LOG_NCIHAL_LOGLEVEL=0x01
++NXP_LOG_NCIX_LOGLEVEL=0x00
++NXP_LOG_NCIR_LOGLEVEL=0x00
++NXP_LOG_FWDNLD_LOGLEVEL=0x01
++NXP_LOG_TML_LOGLEVEL=0x01

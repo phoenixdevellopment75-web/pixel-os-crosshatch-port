@@ -1,0 +1,32 @@
+# PixelOS Crosshatch Port — .gitignore
+
+# Build output
+out/
+*.log
+build_*.log
+
+# ccache
+.ccache/
+
+# Repo tool
+.repo/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+*.json
+*.pem
+*.keystore
+gdrive_sa.json
+
+# Temp
+tmp/
+*.tmp
+*.swp

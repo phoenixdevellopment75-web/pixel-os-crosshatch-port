@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PixelOS Crosshatch Porter <porter@pixelos.net>
+Date: Mon, 18 May 2026 00:00:06 +0000
+Subject: [PATCH 0007] crosshatch: Fix SELinux policies for crosshatch hardware
+
+Add SELinux rules for:
+  - NFC daemon (nqnfcinfo)
+  - Wireless charging sysfs node
+  - Crosshatch-specific vibrator path
+  - Dual front camera service
+
+---
+ sepolicy/vendor/file_contexts  | 15 +++++++++
+ sepolicy/vendor/property_contexts | 8 +++++
+ sepolicy/vendor/crosshatch.te   | 30 ++++++++++++++++++
+
+diff --git a/sepolicy/vendor/crosshatch.te b/sepolicy/vendor/crosshatch.te
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/sepolicy/vendor/crosshatch.te
+@@ -0,0 +1,30 @@
++# SELinux policy for Pixel 3 XL (crosshatch)
++
++# NFC
++type nqnfcinfo, sysfs_type, fs_type;
++allow nfc nqnfcinfo:file rw_file_perms;
++allow hal_nfc_default nqnfcinfo:file rw_file_perms;
++
++# Wireless charging sysfs
++type sysfs_wireless_charging, sysfs_type, fs_type;
++allow system_server sysfs_wireless_charging:file r_file_perms;
++allow hal_health_default sysfs_wireless_charging:file rw_file_perms;
++
++# Vibrator (crosshatch uses different path)
++type sysfs_vibrator_crosshatch, sysfs_type, fs_type;
++allow hal_vibrator_default sysfs_vibrator_crosshatch:file rw_file_perms;
++
++# Camera (dual front)
++allow hal_camera_default sysfs_type:file r_file_perms;
++
++# Thermal engine
++allow thermal-engine sysfs_thermal:dir search;
++allow thermal-engine sysfs_thermal:file rw_file_perms;
+
+diff --git a/sepolicy/vendor/file_contexts b/sepolicy/vendor/file_contexts
+index 4444444..5555555 100644
+--- a/sepolicy/vendor/file_contexts
++++ b/sepolicy/vendor/file_contexts
+@@ -1,5 +1,20 @@
++# Crosshatch-specific file contexts
++/sys/class/power_supply/wireless(/.*)?       u:object_r:sysfs_wireless_charging:s0
++/sys/class/leds/vibrator(/.*)?               u:object_r:sysfs_vibrator_crosshatch:s0
++/dev/nq-nci                                  u:object_r:nfc_device:s0
++/vendor/bin/init\.crosshatch\.sh             u:object_r:vendor_shell_exec:s0
