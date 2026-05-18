@@ -21,7 +21,8 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      # ── STEP 1: Free up disk (~65 GB usable after this) ───────────────────
+
+      # ── 1. Free up ~65 GB on the runner ─────────────────────────────────────
       - name: "💾 Maximize disk space"
         uses: easimon/maximize-build-space@master
         with:
@@ -34,42 +35,39 @@ jobs:
           remove-codeql:        "true"
           remove-docker-images: "true"
 
-      # ── STEP 2: Checkout the device tree (this repo) ──────────────────────
+      # ── 2. Checkout this device tree ─────────────────────────────────────────
       - name: "📥 Checkout device tree"
         uses: actions/checkout@v4
         with:
           path: ${{ github.workspace }}/device_tree
 
-      # ── STEP 3: Install build dependencies ────────────────────────────────
+      # ── 3. Install build deps (all verified on ubuntu-22.04) ─────────────────
       - name: "📦 Install build deps"
         run: |
           sudo apt-get update -qq
-          # All packages verified against ubuntu-22.04 repos
           sudo apt-get install -y --no-install-recommends \
-            bc bison build-essential ccache curl flex \
+            adb autoconf automake axel bc bison \
+            build-essential ccache curl flex \
             g++-multilib gcc-multilib git gnupg gperf \
-            lib32ncurses5-dev lib32z1-dev libelf-dev \
-            libncurses5-dev libssl-dev libxml2-utils lzop \
-            m4 openjdk-11-jdk pngcrush rsync schedtool \
-            squashfs-tools xsltproc zip zlib1g-dev \
-            python3 python3-pip python3-setuptools \
-            libncurses5 libtinfo5 libxml2 \
-            imagemagick libwxgtk3.0-gtk3-dev \
-            unzip fontconfig
-          # Make python3 the default 'python' command
-          sudo ln -sf /usr/bin/python3 /usr/local/bin/python 2>/dev/null || true
-          echo "✅ All build deps installed"
-          java -version
-          python3 --version
+            imagemagick lib32ncurses5-dev lib32readline-dev \
+            lib32z1-dev libelf-dev libncurses5 libncurses5-dev \
+            libsdl1.2-dev libssl-dev libwxgtk3.0-gtk3-dev \
+            libxml2 libxml2-utils lzop m4 \
+            openjdk-11-jdk pngcrush rsync schedtool \
+            squashfs-tools unzip xsltproc zip zlib1g-dev \
+            python3 python3-pip python3-setuptools
+          # Symlink python3 → python (replaces python-is-python3)
+          sudo ln -sf /usr/bin/python3 /usr/local/bin/python
+          echo "✅ Deps installed"
+          python3 --version && java -version
 
-      # ── STEP 4: Restore ccache ─────────────────────────────────────────────
+      # ── 4. ccache ────────────────────────────────────────────────────────────
       - name: "⚡ Restore ccache"
         uses: actions/cache@v4
         with:
           path: ~/.ccache
           key:  ccache-crosshatch-${{ github.sha }}
-          restore-keys: |
-            ccache-crosshatch-
+          restore-keys: ccache-crosshatch-
 
       - name: "⚙️ Configure ccache"
         run: |
@@ -79,21 +77,20 @@ jobs:
           echo "CCACHE_DIR=$HOME/.ccache"    >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1"           >> $GITHUB_ENV
 
-      # ── STEP 5: Set up the repo tool ──────────────────────────────────────
+      # ── 5. repo tool ─────────────────────────────────────────────────────────
       - name: "🔧 Setup repo tool"
         run: |
           mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
-            > ~/bin/repo
+          curl -fsSL \
+            https://storage.googleapis.com/git-repo-downloads/repo \
+            -o ~/bin/repo
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
           git config --global user.email "ci@pixelos.net"
           git config --global user.name  "PixelOS CI"
-          git config --global color.ui    false
+          git config --global color.ui   false
 
-      # ── STEP 6: Init PixelOS manifest ─────────────────────────────────────
-      # FIX: removed --groups flag (not supported by PixelOS manifest)
-      # FIX: use /mnt/workspace which is the large volume
+      # ── 6. Init manifest ─────────────────────────────────────────────────────
       - name: "📋 Init PixelOS manifest"
         run: |
           mkdir -p /mnt/workspace
@@ -104,9 +101,9 @@ jobs:
             -b ${{ env.BRANCH }} \
             --no-clone-bundle \
             --no-tags
+          echo "✅ Manifest initialized"
 
-      # ── STEP 7: Inject local manifests ────────────────────────────────────
-      # The local manifests tell repo sync which extra repos to add/remove
+      # ── 7. Inject local manifests ────────────────────────────────────────────
       - name: "🗺️ Inject local manifests"
         run: |
           mkdir -p /mnt/workspace/.repo/local_manifests
@@ -114,9 +111,12 @@ jobs:
              /mnt/workspace/.repo/local_manifests/
           cp ${{ github.workspace }}/device_tree/local_manifests/remove_unneeded.xml \
              /mnt/workspace/.repo/local_manifests/
+          echo "✅ Local manifests injected"
 
-      # ── STEP 8: Sync sources (only the repos we need) ─────────────────────
-      - name: "🔄 Repo sync (~40 GB, takes 30–60 min)"
+      # ── 8. Repo sync ─────────────────────────────────────────────────────────
+      # NOTE: --optimized-fetch and --fail-fast removed — not supported by all
+      # repo versions. Using safe flags only.
+      - name: "🔄 Repo sync (takes 30–60 min)"
         run: |
           cd /mnt/workspace
           ~/bin/repo sync \
@@ -125,69 +125,62 @@ jobs:
             --force-sync \
             --no-clone-bundle \
             --no-tags \
-            --optimized-fetch \
-            --fail-fast
-          echo "✅ Sync complete. Disk usage:"
+            2>&1 | tee /tmp/sync.log || {
+              echo "❌ Sync failed. Last 50 lines:"
+              tail -50 /tmp/sync.log
+              exit 1
+            }
+          echo "✅ Sync complete"
           df -h /mnt/workspace
 
-      # ── STEP 9: Install device tree files ─────────────────────────────────
-      # FIX: device tree was already synced via roomservice.xml,
-      # but we still copy local patches folder which isn't in the manifest
+      # ── 9. Install device tree + patches ─────────────────────────────────────
       - name: "📁 Install device tree extras"
         run: |
-          # Copy patches (not pulled via manifest)
           mkdir -p /mnt/workspace/device/google/crosshatch/patches
           cp -r ${{ github.workspace }}/device_tree/patches/. \
                 /mnt/workspace/device/google/crosshatch/patches/
+          echo "✅ Device tree extras copied"
 
-      # ── STEP 10: Fetch prebuilt kernel ────────────────────────────────────
-      # Kernel is in vendor/google/crosshatch already (from TheMuppets)
+      # ── 10. Prebuilt kernel ───────────────────────────────────────────────────
       - name: "🐧 Fetch prebuilt kernel"
         run: |
-          PREBUILT_DIR="/mnt/workspace/device/google/crosshatch/prebuilt"
-          mkdir -p "$PREBUILT_DIR"
-          # Try vendor blobs first (TheMuppets usually has the kernel)
+          PREBUILT="/mnt/workspace/device/google/crosshatch/prebuilt"
           VENDOR_K="/mnt/workspace/vendor/google/crosshatch/kernel/Image.lz4-dtb"
-          VENDOR_D="/mnt/workspace/vendor/google/crosshatch/kernel/dtbo.img"
+          mkdir -p "$PREBUILT"
           if [ -f "$VENDOR_K" ]; then
             echo "✅ Kernel found in vendor blobs"
-            cp "$VENDOR_K" "$PREBUILT_DIR/Image.lz4-dtb"
-            [ -f "$VENDOR_D" ] && cp "$VENDOR_D" "$PREBUILT_DIR/dtbo.img"
+            cp "$VENDOR_K" "$PREBUILT/Image.lz4-dtb"
+            [ -f "${VENDOR_K%/*}/dtbo.img" ] && \
+              cp "${VENDOR_K%/*}/dtbo.img" "$PREBUILT/dtbo.img"
           else
-            echo "⚠️ Kernel not in vendor blobs — skipping prebuilt, will compile"
-            # Remove the prebuilt config so BoardConfig falls back to source compile
-            sed -i '/TARGET_PREBUILT_KERNEL/d' \
-              /mnt/workspace/device/google/crosshatch/BoardConfig.mk
-            sed -i '/BOARD_PREBUILT_DTBOIMAGE/d' \
+            echo "⚠️ No prebuilt kernel — falling back to source compile"
+            # Remove prebuilt lines so BoardConfig.mk falls back to source compile
+            sed -i \
+              '/TARGET_PREBUILT_KERNEL\|BOARD_PREBUILT_DTBOIMAGE/d' \
               /mnt/workspace/device/google/crosshatch/BoardConfig.mk
           fi
 
-      # ── STEP 11: Apply crosshatch compatibility patches ───────────────────
+      # ── 11. Apply patches ─────────────────────────────────────────────────────
       - name: "🩹 Apply crosshatch patches"
         run: |
           cd /mnt/workspace
           bash device/google/crosshatch/patches/apply_patches.sh
 
-      # ── STEP 12: Build the ROM ─────────────────────────────────────────────
-      - name: "🔨 Build ROM (takes 2–4 hours)"
+      # ── 12. Build ─────────────────────────────────────────────────────────────
+      - name: "🔨 Build ROM (2–4 hours)"
         run: |
           cd /mnt/workspace
           source build/envsetup.sh
           lunch pixelos_crosshatch-${{ github.event.inputs.BUILD_TYPE || 'user' }}
           make bacon -j$(nproc --all) 2>&1 | tee /tmp/build.log
-          echo "Build exit code: $?"
 
-      # ── STEP 13: Collect build outputs ────────────────────────────────────
+      # ── 13. Collect outputs ────────────────────────────────────────────────────
       - name: "📦 Collect artifacts"
         id: out
         run: |
           D="/mnt/workspace/out/target/product/crosshatch"
           ZIP=$(ls ${D}/PixelOS*.zip 2>/dev/null | tail -1)
-          if [ -z "$ZIP" ]; then
-            echo "❌ No ROM ZIP found in output directory"
-            ls -la "$D" || true
-            exit 1
-          fi
+          [ -z "$ZIP" ] && { echo "❌ No ROM zip found"; ls "$D" || true; exit 1; }
           echo "zip=${ZIP}"                            >> $GITHUB_OUTPUT
           echo "name=$(basename ${ZIP})"               >> $GITHUB_OUTPUT
           echo "md5=$(md5sum ${ZIP} | cut -d' ' -f1)" >> $GITHUB_OUTPUT
@@ -195,9 +188,8 @@ jobs:
           cp ${D}/boot.img   /tmp/ 2>/dev/null || true
           cp ${D}/dtbo.img   /tmp/ 2>/dev/null || true
           cp ${D}/vbmeta.img /tmp/ 2>/dev/null || true
-          echo "✅ ROM: $(basename $ZIP) ($(du -sh $ZIP | cut -f1))"
 
-      # ── STEP 14: Upload ROM to GitHub Artifacts ────────────────────────────
+      # ── 14. Upload artifacts ──────────────────────────────────────────────────
       - name: "⬆️ Upload artifacts"
         uses: actions/upload-artifact@v4
         with:
@@ -209,7 +201,7 @@ jobs:
             /tmp/vbmeta.img
           retention-days: 7
 
-      # ── STEP 15: Create GitHub Release ────────────────────────────────────
+      # ── 15. GitHub Release ────────────────────────────────────────────────────
       - name: "🚀 Create GitHub Release"
         if: success()
         uses: softprops/action-gh-release@v2
@@ -221,19 +213,18 @@ jobs:
             **MD5:** `${{ steps.out.outputs.md5 }}`
             **Build type:** ${{ github.event.inputs.BUILD_TYPE || 'user' }}
 
-            ### Flash Instructions
+            ### Flash
             1. Boot TWRP → Wipe System + Data + Dalvik
-            2. Flash this ZIP → Reboot (first boot ~5 min)
+            2. Flash ZIP → Reboot (first boot ~5 min)
 
-            ### Features
-            ✅ NFC | ✅ Wireless Charging | ✅ GCam | ✅ SELinux Enforcing | ✅ Play Integrity
+            ✅ NFC | ✅ Wireless Charging | ✅ GCam | ✅ SELinux Enforcing
           files: |
             ${{ steps.out.outputs.zip }}
             /tmp/boot.img
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── STEP 16: Telegram notification ────────────────────────────────────
+      # ── 16. Telegram ──────────────────────────────────────────────────────────
       - name: "📨 Telegram notification"
         if: success() && env.TELEGRAM_BOT_TOKEN != ''
         env:
@@ -244,21 +235,20 @@ jobs:
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d parse_mode="Markdown" \
-            -d text="✅ *PixelOS 14 — Pixel 3 XL built!*
-          📦 \`${{ steps.out.outputs.name }}\`
-          🔑 \`${{ steps.out.outputs.md5 }}\`
-          📥 [Download](https://github.com/phoenixdevellopment75-web/pixel-os-crosshatch-port/releases)"
+            -d text="✅ *PixelOS 14 — Pixel 3 XL*%0A📦 \`${{ steps.out.outputs.name }}\`%0A🔑 \`${{ steps.out.outputs.md5 }}\`%0A📥 https://github.com/phoenixdevellopment75-web/pixel-os-crosshatch-port/releases"
 
-      # ── STEP 17: ccache stats ──────────────────────────────────────────────
+      # ── 17. ccache stats ──────────────────────────────────────────────────────
       - name: "📊 ccache stats"
         if: always()
         run: ccache --show-stats
 
-      # ── STEP 18: Upload build log on failure ──────────────────────────────
-      - name: "📋 Upload build log (on failure)"
+      # ── 18. Upload log on failure ─────────────────────────────────────────────
+      - name: "📋 Upload build log on failure"
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: "build-log-failed"
-          path: /tmp/build.log
+          path: |
+            /tmp/build.log
+            /tmp/sync.log
           retention-days: 3
