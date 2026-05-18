@@ -44,6 +44,7 @@ jobs:
       - name: "📦 Install build deps"
         run: |
           sudo apt-get update -qq
+          # All packages verified against ubuntu-22.04 repos
           sudo apt-get install -y --no-install-recommends \
             bc bison build-essential ccache curl flex \
             g++-multilib gcc-multilib git gnupg gperf \
@@ -51,7 +52,15 @@ jobs:
             libncurses5-dev libssl-dev libxml2-utils lzop \
             m4 openjdk-11-jdk pngcrush rsync schedtool \
             squashfs-tools xsltproc zip zlib1g-dev \
-            python3 python-is-python3
+            python3 python3-pip python3-setuptools \
+            libncurses5 libtinfo5 libxml2 \
+            imagemagick libwxgtk3.0-gtk3-dev \
+            unzip fontconfig
+          # Make python3 the default 'python' command
+          sudo ln -sf /usr/bin/python3 /usr/local/bin/python 2>/dev/null || true
+          echo "✅ All build deps installed"
+          java -version
+          python3 --version
 
       # ── STEP 4: Restore ccache ─────────────────────────────────────────────
       - name: "⚡ Restore ccache"
