@@ -21,9 +21,9 @@ env:
 jobs:
   build:
     name: "Build PixelOS — crosshatch"
-    # ubuntu-20.04 has ALL required Android build packages.
-    # DO NOT change to 22.04 — it dropped libsdl1.2-dev, libwxgtk3.0-gtk3-dev etc.
-    runs-on: ubuntu-20.04
+    # ubuntu-22.04 is the only available GitHub-hosted runner as of April 2025.
+    # ubuntu-20.04 runners were REMOVED by GitHub and will hang forever if used.
+    runs-on: ubuntu-22.04
     timeout-minutes: 360
 
     steps:
@@ -33,8 +33,7 @@ jobs:
     # ═══════════════════════════════════════════════════════════════════════════
     - name: "🗑️ Free disk space"
       run: |
-        echo "Before cleanup:"
-        df -h
+        echo "Disk before cleanup:"; df -h
         sudo rm -rf \
           /usr/share/dotnet \
           /usr/local/lib/android \
@@ -43,8 +42,7 @@ jobs:
           /usr/local/.ghcup \
           "$AGENT_TOOLSDIRECTORY"
         sudo docker image prune --all --force 2>/dev/null || true
-        echo "After cleanup:"
-        df -h
+        echo "Disk after cleanup:"; df -h
 
     # ═══════════════════════════════════════════════════════════════════════════
     # STEP 2 — Mount large workspace volume on /mnt
@@ -76,22 +74,22 @@ jobs:
     - name: "📦 Install build dependencies"
       run: |
         sudo apt-get update -q
+        # Packages from official AOSP documentation for Ubuntu 22.04:
+        # https://source.android.com/docs/setup/start/initializing
         sudo apt-get install -y \
-          bc bison build-essential ccache curl flex \
-          g++-multilib gcc-multilib git gnupg gperf \
-          imagemagick lib32ncurses5-dev lib32readline-dev \
-          lib32z1-dev liblz4-tool libncurses5-dev \
-          libsdl1.2-dev libssl-dev libwxgtk3.0-gtk3-dev \
-          libxml2 libxml2-utils lzop m4 \
-          openjdk-11-jdk pngcrush rsync schedtool \
-          squashfs-tools unzip xsltproc zip zlib1g-dev \
-          python-is-python3 python3 python3-pip
-        sudo ln -sf /usr/bin/python3 /usr/local/bin/python
-        echo "──────────────── Versions ────────────────"
-        java -version
+          git-core gnupg flex bison build-essential zip curl \
+          zlib1g-dev libc6-dev-i386 libncurses5 libncurses5-dev \
+          x11proto-core-dev libx11-dev lib32z1-dev \
+          libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig \
+          g++-multilib gcc-multilib m4 gperf bc \
+          openjdk-11-jdk ccache rsync schedtool \
+          squashfs-tools pngcrush lzop \
+          libssl-dev libelf-dev \
+          python3 python-is-python3
+        echo "──────────── Versions ────────────────"
+        java -version 2>&1 | head -1
         python3 --version
-        gcc --version | head -1
-        echo "✅ All dependencies installed"
+        echo "✅ All build deps installed"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # STEP 5 — ccache (speeds up repeat builds significantly)
