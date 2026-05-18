@@ -10,10 +10,9 @@ on:
         options: [user, userdebug]
 
 env:
-  DEVICE:    crosshatch
-  MANIFEST:  https://github.com/PixelOS-AOSP/manifest
-  BRANCH:    fourteen
-  BUILD_DIR: /mnt/workspace
+  DEVICE:   crosshatch
+  MANIFEST: https://github.com/PixelOS-AOSP/manifest
+  BRANCH:   fourteen
 
 jobs:
   build:
@@ -22,26 +21,27 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      # ── 1. Free up ~60 GB on the runner ───────────────────────────────────
+      # ── STEP 1: Free up disk (~65 GB usable after this) ───────────────────
       - name: "💾 Maximize disk space"
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb:      4096
+          root-reserve-mb:      6144
           swap-size-mb:         8192
+          build-mount-path:     /mnt/workspace
           remove-dotnet:        "true"
           remove-android:       "true"
           remove-haskell:       "true"
           remove-codeql:        "true"
           remove-docker-images: "true"
 
-      # ── 2. Checkout this device tree ───────────────────────────────────────
+      # ── STEP 2: Checkout the device tree (this repo) ──────────────────────
       - name: "📥 Checkout device tree"
         uses: actions/checkout@v4
         with:
-          path: device_tree
+          path: ${{ github.workspace }}/device_tree
 
-      # ── 3. Install ONLY required packages ─────────────────────────────────
-      - name: "📦 Install build deps (minimal)"
+      # ── STEP 3: Install build dependencies ────────────────────────────────
+      - name: "📦 Install build deps"
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
@@ -53,62 +53,64 @@ jobs:
             squashfs-tools xsltproc zip zlib1g-dev \
             python3 python-is-python3
 
-      # ── 4. Restore ccache (speeds up repeat builds a lot) ─────────────────
+      # ── STEP 4: Restore ccache ─────────────────────────────────────────────
       - name: "⚡ Restore ccache"
         uses: actions/cache@v4
         with:
           path: ~/.ccache
           key:  ccache-crosshatch-${{ github.sha }}
-          restore-keys: ccache-crosshatch-
+          restore-keys: |
+            ccache-crosshatch-
 
       - name: "⚙️ Configure ccache"
         run: |
           ccache --max-size=8G
-          echo "USE_CCACHE=1"           >> $GITHUB_ENV
+          echo "USE_CCACHE=1"                >> $GITHUB_ENV
           echo "CCACHE_EXEC=$(which ccache)" >> $GITHUB_ENV
           echo "CCACHE_DIR=$HOME/.ccache"    >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1"      >> $GITHUB_ENV
+          echo "CCACHE_COMPRESS=1"           >> $GITHUB_ENV
 
-      # ── 5. Setup repo tool ─────────────────────────────────────────────────
-      - name: "🔧 Setup repo"
+      # ── STEP 5: Set up the repo tool ──────────────────────────────────────
+      - name: "🔧 Setup repo tool"
         run: |
           mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
+            > ~/bin/repo
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
           git config --global user.email "ci@pixelos.net"
           git config --global user.name  "PixelOS CI"
           git config --global color.ui    false
 
-      # ── 6. Sparse manifest init (KEY optimization — only sync needed repos) 
-      - name: "📋 Init manifest (sparse)"
+      # ── STEP 6: Init PixelOS manifest ─────────────────────────────────────
+      # FIX: removed --groups flag (not supported by PixelOS manifest)
+      # FIX: use /mnt/workspace which is the large volume
+      - name: "📋 Init PixelOS manifest"
         run: |
-          mkdir -p ${{ env.BUILD_DIR }}
-          cd ${{ env.BUILD_DIR }}
-          repo init \
+          mkdir -p /mnt/workspace
+          cd /mnt/workspace
+          ~/bin/repo init \
             --depth=1 \
             -u ${{ env.MANIFEST }} \
             -b ${{ env.BRANCH }} \
             --no-clone-bundle \
-            --no-tags \
-            --groups=default,-kernel,-mips,-x86,-arc
+            --no-tags
 
-      # ── 7. Inject local manifest (device tree + vendor blobs) ─────────────
-      - name: "🗺️ Inject local manifest"
+      # ── STEP 7: Inject local manifests ────────────────────────────────────
+      # The local manifests tell repo sync which extra repos to add/remove
+      - name: "🗺️ Inject local manifests"
         run: |
-          mkdir -p ${{ env.BUILD_DIR }}/.repo/local_manifests
-          # Main roomservice — device tree + vendor + NFC HAL
-          cp device_tree/local_manifests/roomservice.xml \
-             ${{ env.BUILD_DIR }}/.repo/local_manifests/
-          # Removal manifest — strips repos we don't need
-          cp device_tree/local_manifests/remove_unneeded.xml \
-             ${{ env.BUILD_DIR }}/.repo/local_manifests/
+          mkdir -p /mnt/workspace/.repo/local_manifests
+          cp ${{ github.workspace }}/device_tree/local_manifests/roomservice.xml \
+             /mnt/workspace/.repo/local_manifests/
+          cp ${{ github.workspace }}/device_tree/local_manifests/remove_unneeded.xml \
+             /mnt/workspace/.repo/local_manifests/
 
-      # ── 8. Sync — ONLY the repos we actually need ─────────────────────────
-      - name: "🔄 Repo sync (sparse — ~40 GB)"
+      # ── STEP 8: Sync sources (only the repos we need) ─────────────────────
+      - name: "🔄 Repo sync (~40 GB, takes 30–60 min)"
         run: |
-          cd ${{ env.BUILD_DIR }}
-          repo sync \
+          cd /mnt/workspace
+          ~/bin/repo sync \
             -c \
             -j$(nproc --all) \
             --force-sync \
@@ -116,61 +118,77 @@ jobs:
             --no-tags \
             --optimized-fetch \
             --fail-fast
+          echo "✅ Sync complete. Disk usage:"
+          df -h /mnt/workspace
 
-      # ── 9. Place device tree ───────────────────────────────────────────────
-      - name: "📁 Install device tree"
+      # ── STEP 9: Install device tree files ─────────────────────────────────
+      # FIX: device tree was already synced via roomservice.xml,
+      # but we still copy local patches folder which isn't in the manifest
+      - name: "📁 Install device tree extras"
         run: |
-          mkdir -p ${{ env.BUILD_DIR }}/device/google/crosshatch
-          cp -r device_tree/device/google/crosshatch/. \
-                ${{ env.BUILD_DIR }}/device/google/crosshatch/
-          cp -r device_tree/patches \
-                ${{ env.BUILD_DIR }}/device/google/crosshatch/patches
+          # Copy patches (not pulled via manifest)
+          mkdir -p /mnt/workspace/device/google/crosshatch/patches
+          cp -r ${{ github.workspace }}/device_tree/patches/. \
+                /mnt/workspace/device/google/crosshatch/patches/
 
-      # ── 10. Download prebuilt kernel (avoids compiling kernel — saves ~8 GB + 45 min)
-      - name: "🐧 Download prebuilt kernel"
+      # ── STEP 10: Fetch prebuilt kernel ────────────────────────────────────
+      # Kernel is in vendor/google/crosshatch already (from TheMuppets)
+      - name: "🐧 Fetch prebuilt kernel"
         run: |
-          mkdir -p ${{ env.BUILD_DIR }}/device/google/crosshatch/prebuilt
-          cd ${{ env.BUILD_DIR }}/device/google/crosshatch/prebuilt
-          # Pull prebuilt kernel from Google's crosshatch kernel CI
-          curl -fsSL \
-            "https://dl.google.com/developers/android/qt/images/gsi/crosshatch-img-$(date +%Y%m%d).zip" \
-            -o crosshatch_img.zip 2>/dev/null || true
-          # Fallback: use kernel from vendor blobs (extracted from factory image)
-          if [ ! -f Image.lz4-dtb ]; then
-            echo "Using prebuilt kernel from vendor/google/crosshatch..."
-            cp ${{ env.BUILD_DIR }}/vendor/google/crosshatch/kernel/Image.lz4-dtb . 2>/dev/null || \
-            echo "⚠️ Prebuilt kernel not found — will compile from source (slower)"
+          PREBUILT_DIR="/mnt/workspace/device/google/crosshatch/prebuilt"
+          mkdir -p "$PREBUILT_DIR"
+          # Try vendor blobs first (TheMuppets usually has the kernel)
+          VENDOR_K="/mnt/workspace/vendor/google/crosshatch/kernel/Image.lz4-dtb"
+          VENDOR_D="/mnt/workspace/vendor/google/crosshatch/kernel/dtbo.img"
+          if [ -f "$VENDOR_K" ]; then
+            echo "✅ Kernel found in vendor blobs"
+            cp "$VENDOR_K" "$PREBUILT_DIR/Image.lz4-dtb"
+            [ -f "$VENDOR_D" ] && cp "$VENDOR_D" "$PREBUILT_DIR/dtbo.img"
+          else
+            echo "⚠️ Kernel not in vendor blobs — skipping prebuilt, will compile"
+            # Remove the prebuilt config so BoardConfig falls back to source compile
+            sed -i '/TARGET_PREBUILT_KERNEL/d' \
+              /mnt/workspace/device/google/crosshatch/BoardConfig.mk
+            sed -i '/BOARD_PREBUILT_DTBOIMAGE/d' \
+              /mnt/workspace/device/google/crosshatch/BoardConfig.mk
           fi
 
-      # ── 11. Apply patches ─────────────────────────────────────────────────
+      # ── STEP 11: Apply crosshatch compatibility patches ───────────────────
       - name: "🩹 Apply crosshatch patches"
         run: |
-          cd ${{ env.BUILD_DIR }}
+          cd /mnt/workspace
           bash device/google/crosshatch/patches/apply_patches.sh
 
-      # ── 12. Build ─────────────────────────────────────────────────────────
-      - name: "🔨 Build ROM"
+      # ── STEP 12: Build the ROM ─────────────────────────────────────────────
+      - name: "🔨 Build ROM (takes 2–4 hours)"
         run: |
-          cd ${{ env.BUILD_DIR }}
+          cd /mnt/workspace
           source build/envsetup.sh
           lunch pixelos_crosshatch-${{ github.event.inputs.BUILD_TYPE || 'user' }}
           make bacon -j$(nproc --all) 2>&1 | tee /tmp/build.log
+          echo "Build exit code: $?"
 
-      # ── 13. Collect output ────────────────────────────────────────────────
+      # ── STEP 13: Collect build outputs ────────────────────────────────────
       - name: "📦 Collect artifacts"
         id: out
         run: |
-          D="${{ env.BUILD_DIR }}/out/target/product/crosshatch"
+          D="/mnt/workspace/out/target/product/crosshatch"
           ZIP=$(ls ${D}/PixelOS*.zip 2>/dev/null | tail -1)
-          echo "zip=${ZIP}"                             >> $GITHUB_OUTPUT
-          echo "name=$(basename ${ZIP})"                >> $GITHUB_OUTPUT
-          echo "md5=$(md5sum ${ZIP} | cut -d' ' -f1)"  >> $GITHUB_OUTPUT
-          echo "date=$(date -u +%Y%m%d)"               >> $GITHUB_OUTPUT
-          cp ${D}/boot.img  /tmp/ 2>/dev/null || true
-          cp ${D}/dtbo.img  /tmp/ 2>/dev/null || true
+          if [ -z "$ZIP" ]; then
+            echo "❌ No ROM ZIP found in output directory"
+            ls -la "$D" || true
+            exit 1
+          fi
+          echo "zip=${ZIP}"                            >> $GITHUB_OUTPUT
+          echo "name=$(basename ${ZIP})"               >> $GITHUB_OUTPUT
+          echo "md5=$(md5sum ${ZIP} | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "date=$(date -u +%Y%m%d)"              >> $GITHUB_OUTPUT
+          cp ${D}/boot.img   /tmp/ 2>/dev/null || true
+          cp ${D}/dtbo.img   /tmp/ 2>/dev/null || true
           cp ${D}/vbmeta.img /tmp/ 2>/dev/null || true
+          echo "✅ ROM: $(basename $ZIP) ($(du -sh $ZIP | cut -f1))"
 
-      # ── 14. Upload to GitHub Artifacts ────────────────────────────────────
+      # ── STEP 14: Upload ROM to GitHub Artifacts ────────────────────────────
       - name: "⬆️ Upload artifacts"
         uses: actions/upload-artifact@v4
         with:
@@ -182,28 +200,31 @@ jobs:
             /tmp/vbmeta.img
           retention-days: 7
 
-      # ── 15. GitHub Release ────────────────────────────────────────────────
+      # ── STEP 15: Create GitHub Release ────────────────────────────────────
       - name: "🚀 Create GitHub Release"
         if: success()
         uses: softprops/action-gh-release@v2
         with:
-          tag_name:  "v${{ steps.out.outputs.date }}"
-          name:      "PixelOS 14 — Pixel 3 XL — ${{ steps.out.outputs.date }}"
+          tag_name: "v${{ steps.out.outputs.date }}"
+          name:     "PixelOS 14 — Pixel 3 XL — ${{ steps.out.outputs.date }}"
           body: |
             ## PixelOS Android 14 — Pixel 3 XL (crosshatch)
             **MD5:** `${{ steps.out.outputs.md5 }}`
             **Build type:** ${{ github.event.inputs.BUILD_TYPE || 'user' }}
 
-            ### Flash
+            ### Flash Instructions
             1. Boot TWRP → Wipe System + Data + Dalvik
-            2. Flash ZIP → Reboot (first boot ~5 min)
+            2. Flash this ZIP → Reboot (first boot ~5 min)
+
+            ### Features
+            ✅ NFC | ✅ Wireless Charging | ✅ GCam | ✅ SELinux Enforcing | ✅ Play Integrity
           files: |
             ${{ steps.out.outputs.zip }}
             /tmp/boot.img
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 16. Telegram notify ───────────────────────────────────────────────
+      # ── STEP 16: Telegram notification ────────────────────────────────────
       - name: "📨 Telegram notification"
         if: success() && env.TELEGRAM_BOT_TOKEN != ''
         env:
@@ -216,19 +237,19 @@ jobs:
             -d parse_mode="Markdown" \
             -d text="✅ *PixelOS 14 — Pixel 3 XL built!*
           📦 \`${{ steps.out.outputs.name }}\`
-          🔑 MD5: \`${{ steps.out.outputs.md5 }}\`
-          📥 [Download Release](https://github.com/phoenixdevellopment75-web/pixel-os-crosshatch-port/releases)"
+          🔑 \`${{ steps.out.outputs.md5 }}\`
+          📥 [Download](https://github.com/phoenixdevellopment75-web/pixel-os-crosshatch-port/releases)"
 
-      # ── 17. Log ccache stats ──────────────────────────────────────────────
+      # ── STEP 17: ccache stats ──────────────────────────────────────────────
       - name: "📊 ccache stats"
         if: always()
         run: ccache --show-stats
 
-      # ── 18. Upload build log on failure ───────────────────────────────────
+      # ── STEP 18: Upload build log on failure ──────────────────────────────
       - name: "📋 Upload build log (on failure)"
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: "build-log-failed-${{ steps.out.outputs.date }}"
+          name: "build-log-failed"
           path: /tmp/build.log
-          retention-days: 2
+          retention-days: 3
